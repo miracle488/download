@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Download</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  body{font-family:sans-serif;padding:20px;text-align:center;max-width:500px;margin:auto}
+  .card{border:1px solid #ddd;border-radius:12px;padding:20px;margin-top:40px}
+  h2{font-size:18px;word-break:break-all}
+  button{width:100%;padding:14px;margin-top:15px;background:#4285F4;color:white;border:none;border-radius:8px;font-size:16px}
+  button:disabled{background:#ccc}
+  #msg{color:#555;font-size:14px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="card">
+  <p>📄 Your file is ready</p>
+  <h2 id="filename">Loading...</h2>
+  <p id="msg">Fetching from Supabase...</p>
+  <button id="dlBtn" onclick="download()" disabled>⬇ Download</button>
+</div>
+
+<script>
+// PASTE YOUR DETAILS HERE
+const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";
+const SUPABASE_ANON_KEY = "YOUR-ANON-KEY";
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Code lives ONLY in memory, never in localStorage, never shown
+let pulledCode = null;
+let pulledFilename = null;
+let pulledId = null;
+
+async function loadOnce(){
+  pulledId = new URLSearchParams(window.location.search).get('id');
+  if(!pulledId){
+    document.getElementById('filename').innerText = "No file";
+    document.getElementById('msg').innerText = "No ID in link";
+    return;
+  }
+
+  // ONE-TIME query
+  const { data, error } = await supabase.from('code_shares').select('*').eq('id', pulledId).single();
+
+  if(error || !data){
+    document.getElementById('filename').innerText = "Not found";
+    document.getElementById('msg').innerText = "File not found or already downloaded";
+    return;
+  }
+
+  pulledCode = data.code;
+  pulledFilename = data.filename || "index.html";
+
+  // Show ONLY title, not code
+  document.getElementById('filename').innerText = pulledFilename;
+  document.getElementById('msg').innerText = "Ready to download";
+  document.getElementById('dlBtn').disabled = false;
+}
+
+async function download(){
+  if(!pulledCode) return;
+
+  // 1. Download in Chrome
+  const blob = new Blob([pulledCode], {type: "text/html"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = pulledFilename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+
+  document.getElementById('msg').innerText = "Downloaded. Cleaning up...";
+  document.getElementById('dlBtn').disabled = true;
+
+  // 2. Delete from Supabase so it is not kept after download
+  await supabase.from('code_shares').delete().eq('id', pulledId);
+
+  // 3. Clear from memory
+  pulledCode = null;
+  pulledFilename = null;
+
+  document.getElementById('msg').innerText = "Done. File deleted from server.";
+  document.getElementById('filename').innerText = "Downloaded";
+}
+
+loadOnce();
+</script>
+
+<!-- Deployed via Forge -->
+<div id="forge-badge" style="position:fixed;bottom:6px;right:6px;z-index:9999;cursor:pointer;line-height:0;"><img id="forge-eagle" src="https://i.ibb.co/B2w6fwFk/file-0000000034a481f49873cb4455680848.jpg" alt="Forge" style="width:24px;height:24px;object-fit:cover;border-radius:50%;display:block;"><div id="forge-panel" style="display:none;background:#111827;color:#ffffff;font-family:system-ui,sans-serif;font-size:10px;line-height:1.5;padding:10px 12px;border-radius:8px;width:190px;box-shadow:0 4px 16px rgba(0,0,0,.3);text-align:left;"><div style="font-weight:800;font-size:11px;margin-bottom:6px;">Deploy via Forge</div><div>Site: download</div><div>Deployed: 23/11/2026, 09:54</div><a href="https://swiftbase-ae5a3.web.app/Kashmill.html#" target="_blank" style="display:inline-block;margin-top:8px;background:#ffffff;color:#111827;font-size:10px;font-weight:700;padding:6px 12px;border-radius:5px;text-decoration:none;">Visit Forge Developers</a> <span id="forge-close" style="margin-left:8px;cursor:pointer;opacity:.8;font-size:10px;">Close</span></div></div>
+<script>(function(){var badge=document.getElementById("forge-badge");if(!badge)return;var eagle=document.getElementById("forge-eagle");var panel=document.getElementById("forge-panel");var closeBtn=document.getElementById("forge-close");var open=false;try{var K="forge_watermark_img_v1";var U="https://i.ibb.co/B2w6fwFk/file-0000000034a481f49873cb4455680848.jpg";var cached=localStorage.getItem(K);if(cached&&cached.indexOf("data:")===0){eagle.src=cached;}else{fetch(U).then(function(r){return r.blob()}).then(function(b){var rd=new FileReader();rd.onload=function(){try{localStorage.setItem(K,rd.result);eagle.src=rd.result;}catch(e){}};rd.readAsDataURL(b)}).catch(function(){});} }catch(e){} eagle.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();if(!open){eagle.style.display="none";panel.style.display="block";open=true;}else{eagle.style.display="block";panel.style.display="none";open=false;}});if(closeBtn)closeBtn.addEventListener("click",function(e){e.stopPropagation();panel.style.display="none";eagle.style.display="block";open=false;});})();</script>
+</body>
+</html>
